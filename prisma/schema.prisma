@@ -1,0 +1,122 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+  
+enum Role {
+  ADMIN
+  SUPERADMIN
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role      Role     @default(ADMIN)
+
+  
+  invoices  Invoice[] @relation("UserInvoices")
+
+  createdAt DateTime @default(now())
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  name      String
+  // ... other fields
+  email     String
+  phone     String
+  website   String?
+  address   String
+
+  companyId Int?
+  // 🔗 Add this: A client can have one optional company
+  company   Company? 
+  invoices  Invoice[]
+  createdAt DateTime @default(now())
+}
+
+model Company {
+  id        Int      @id @default(autoincrement())
+  name      String
+  address   String
+  phone     String
+  email     String
+  project   String?
+
+  // 🔗 Change this: Link to Client instead of User
+  clientId  Int      @unique
+  client    Client   @relation(fields: [clientId], references: [id])
+
+  invoices  Invoice[]
+  createdAt DateTime @default(now())
+}
+
+model Invoice {
+  id            Int      @id @default(autoincrement())
+  invoiceNumber String   @unique
+
+  invoiceDate   DateTime
+  dueDate       DateTime
+
+  currency      String   @default("LKR")
+  category      String
+
+  subtotal      Float
+  taxRate       Float
+  taxAmount     Float
+  discountType  String   // AMOUNT | PERCENTAGE
+  discountValue Float
+  total         Float
+
+  note          String?
+  terms         String?
+
+  status        InvoiceStatus @default(DRAFT)
+
+  companyId     Int
+  company       Company  @relation(fields: [companyId], references: [id])
+
+  clientId      Int
+  client        Client   @relation(fields: [clientId], references: [id])
+
+  createdById   Int
+  createdBy     User     @relation("UserInvoices", fields: [createdById], references: [id])
+
+  items         InvoiceItem[]
+
+  createdAt     DateTime @default(now())
+}
+
+model InvoiceItem {
+  id          Int     @id @default(autoincrement())
+  description String
+  quantity    Int
+  rate        Float
+  amount      Float
+
+
+  // ... other fields
+  invoiceId   Int
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade) // 👈 Add this
+
+
+  createdAt   DateTime @default(now())
+}
