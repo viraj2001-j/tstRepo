@@ -31,12 +31,12 @@ const menu: MenuItem[] = [
   },
   {
     label: "Create Invoice",
-    href: "/superadmin/invoices/new",
+    href: "/dashboard/invoices/new",
     icon: <FilePlus className="h-5 w-5" />,
   },
   {
     label: "View Invoices",
-    href: "/superadmin/invoices",
+    href: "/dashboard/invoices/view",
     icon: <FileText className="h-5 w-5" />,
   },
   {

@@ -1,5 +1,6 @@
 import prisma from "@/lib/db";
 import Image from "next/image";
+import Test from "@/app/test";
 
 
 
@@ -62,6 +63,7 @@ const page = () => {
   return (
     <div>
       <h1>hiiiiiiiiiiiiiiiiiii</h1>
+      <Test/>
     </div>
   )
 }

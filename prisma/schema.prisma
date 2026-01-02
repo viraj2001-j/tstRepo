@@ -22,7 +22,7 @@ enum InvoiceStatus {
   DRAFT
   SENT
   PAID
-  OVERDUE
+ OVERDUE
 }
 
 model User {
@@ -35,7 +35,7 @@ model User {
   invoices  Invoice[] @relation("UserInvoices")
 
   createdAt DateTime @default(now())
-}
+} 
 
 model Client {
   id        Int      @id @default(autoincrement())
@@ -73,6 +73,7 @@ model Invoice {
   id            Int      @id @default(autoincrement())
   invoiceNumber String   @unique
 
+
   invoiceDate   DateTime
   dueDate       DateTime
 
@@ -91,8 +92,8 @@ model Invoice {
 
   status        InvoiceStatus @default(DRAFT)
 
-  companyId     Int
-  company       Company  @relation(fields: [companyId], references: [id])
+  companyId   Int?
+  company     Company? @relation(fields: [companyId], references: [id])
 
   clientId      Int
   client        Client   @relation(fields: [clientId], references: [id])
@@ -120,3 +121,8 @@ model InvoiceItem {
 
   createdAt   DateTime @default(now())
 }
+
+ model Category {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+}  
