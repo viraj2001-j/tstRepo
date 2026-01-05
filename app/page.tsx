@@ -1,7 +1,7 @@
 import prisma from "@/lib/db";
 import Image from "next/image";
 import Test from "@/app/test";
-
+import Login from "@/app/login/page";
 
 
 // export default async function Home() {
@@ -62,8 +62,8 @@ import React from 'react'
 const page = () => {
   return (
     <div>
-      <h1>hiiiiiiiiiiiiiiiiiii</h1>
-      <Test/>
+     <Login/>
+      
     </div>
   )
 }
