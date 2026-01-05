@@ -123,3 +123,26 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes wormhole {
+  0% {
+    background-size: 100% 100%, 100% 100%;
+    background-position: center, center;
+  }
+  50% {
+    background-size: 150% 150%, 120% 120%;
+    background-position: center, center;
+  }
+  100% {
+    background-size: 100% 100%, 100% 100%;
+    background-position: center, center;
+  }
+}
+
+.animate-wormhole {
+  background: 
+    radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.8) 100%),
+    radial-gradient(circle at center, #991b1b 0%, #450a0a 50%, #000000 100%);
+  background-blend-mode: multiply;
+  animation: wormhole 8s ease-in-out infinite;
+}

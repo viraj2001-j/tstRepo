@@ -1,63 +1,34 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
-import { NextResponse } from "next/server";
-import prisma from "@/lib/db";
+"use server"
 
-export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
+import prisma from "@/lib/db"
+import { revalidatePath } from "next/cache"
 
-  // 🛡️ Role-based protection
-  if (
-    !session ||
-    (session.user.role !== "ADMIN" &&
-      session.user.role !== "SUPERADMIN")
-  ) {
-    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-  }
-
+export async function syncExistingInvoices() {
   try {
-    const invoices = await prisma.invoice.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        invoiceNumber: true,
-        invoiceDate: true,
-        dueDate: true,
-        status: true,
-        currency: true,
-        subtotal: true,
-        taxAmount: true,
-        discountValue: true,
-        total: true,
-
-        client: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-
-        company: {
-          select: {
-            name: true,
-          },
-        },
-
-        createdBy: {
-          select: {
-            username: true,
-            role: true,
-          },
-        },
-      },
+    // 1. Fetch the official signature from the Super Admin's record
+    const admin = await prisma.user.findFirst({
+      where: { role: 'SUPERADMIN' },
+      select: { signature: true }
     });
 
-    return NextResponse.json(invoices);
+    if (!admin?.signature) {
+      return { success: false, error: "No admin signature found in profile." };
+    }
+
+    // 2. Update all invoices where the admin signature is currently null
+    const result = await prisma.invoice.updateMany({
+      where: { 
+        adminSignature: null 
+      },
+      data: { 
+        adminSignature: admin.signature 
+      }
+    });
+
+    revalidatePath("/dashboard/invoices");
+    return { success: true, count: result.count };
   } catch (error) {
-    console.error(error);
-    return NextResponse.json(
-      { message: "Error fetching invoices" },
-      { status: 500 }
-    );
+    console.error("Sync Error:", error);
+    return { success: false, error: "Database update failed." };
   }
 }

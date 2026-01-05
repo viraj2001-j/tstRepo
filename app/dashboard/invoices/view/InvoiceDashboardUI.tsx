@@ -1,12 +1,13 @@
 "use client"
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { 
   CheckCircle, Clock, Download, Edit, Trash2, 
-  Building2, User, Package, RotateCcw 
+  Building2, User, Package, RotateCcw, Share2,
+  Copy
 } from "lucide-react"
 
 import { updateInvoiceStatus, deleteInvoice } from "@/app/api/invoice/view/route" 
@@ -33,6 +34,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { sendInvoiceEmail } from '@/app/api/invoice/sendemail/route'
+import { toast } from 'sonner'
 
 export default function InvoiceDashboardUI({ initialInvoices, userRole, stats }: any) {
   
@@ -47,36 +50,79 @@ export default function InvoiceDashboardUI({ initialInvoices, userRole, stats }:
   };
 
   // Immediate save logic
-  const handleStatus = async (id: number, status: any) => {
-    // Optional: Keep the confirm for safety, or remove it for even faster updates
-    if(confirm(`Mark as ${status}?`)) {
-      await updateInvoiceStatus(id, status);
-    }
+const handleStatus = async (id: number, status: any) => {
+    toast.promise(updateInvoiceStatus(id, status), {
+      loading: `Updating status to ${status}...`,
+      success: `Invoice marked as ${status}`,
+      error: 'Failed to update status',
+    });
   }
 
-  const handleDelete = async (id: number) => {
-    if(confirm("Are you sure you want to delete this invoice?")) await deleteInvoice(id);
-  }
+const handleDelete = async (id: number) => {
+    if(confirm("Are you sure?")) {
+        toast.promise(deleteInvoice(id), {
+            loading: 'Deleting invoice...',
+            success: 'Invoice removed',
+            error: 'Could not delete invoice',
+        });
+    }
+  };
+
+const handleCopyLink = (invoiceId: number) => {
+    // 🟢 Use the environment variable or fallback to localhost
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    
+    // 🟢 The route must match your app/public/invoice/[id] folder structure
+    const link = `${baseUrl}/public/invoice/${invoiceId}`;
+
+    navigator.clipboard.writeText(link)
+      .then(() => toast.success("Link copied to clipboard"))
+      .catch(() => toast.error("Failed to copy link"));
+  };
+
+  // const handleShareInvoice = (invoiceId: number) => {
+  //   const link = `https://yourapp.com/invoice/${invoiceId}`;
+  //   if (navigator.share) {
+  //     navigator.share({
+  //       title: `Invoice #${invoiceId}`,
+  //       url: link,
+  //     }).catch((error) => alert("Error sharing the invoice"));
+  //   } else {
+  //     alert("Sharing not supported on this device");
+  //   }
+  // };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+<div className="w-full space-y-8">
       
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-black text-slate-800 tracking-tight">Invoice Dashboard</h1>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Invoice Dashboard</h1>
+          <p className="text-slate-500 text-sm font-medium">Manage and monitor your business transactions</p>
+        </div>
+        <Button 
+          onClick={() => window.location.href='/dashboard/invoices/new'}
+          className="bg-blue-600 hover:bg-blue-700 font-bold px-6"
+        >
+          + Create New Invoice
+        </Button>
       </div>
 
       <StatsSummary stats={stats} />
-      <SearchFilters onFilterChange={setFilters} />
+      
+      <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+        <SearchFilters onFilterChange={setFilters} />
+      </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
         <Table>
-          <TableHeader className="bg-slate-50">
-            <TableRow>
-              <TableHead className="font-bold text-slate-600">Invoice ID</TableHead>
+          <TableHeader className="bg-slate-50/50">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="font-bold text-slate-600 py-5">Invoice ID</TableHead>
               <TableHead className="font-bold text-slate-600">Client / Company</TableHead>
               <TableHead className="font-bold text-slate-600">Status</TableHead>
-              <TableHead className="font-bold text-slate-600">Due Date</TableHead>
-              <TableHead className="font-bold text-slate-600 text-right">Total Amount</TableHead>
+              <TableHead className="font-bold text-slate-600">Timeline</TableHead>
+              <TableHead className="font-bold text-slate-600 text-right">Amount</TableHead>
               <TableHead className="font-bold text-slate-600 text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -99,7 +145,7 @@ export default function InvoiceDashboardUI({ initialInvoices, userRole, stats }:
                   </TableCell>
 
                   <TableCell>
-                    <Badge className={
+                    <Badge className={ 
                       inv.status === 'PAID' ? 'bg-green-100 text-green-700 hover:bg-green-100' : 
                       inv.status === 'OVERDUE' ? 'bg-red-100 text-red-700 hover:bg-red-100' : 
                       'bg-yellow-100 text-yellow-700 hover:bg-yellow-100'
@@ -115,14 +161,45 @@ export default function InvoiceDashboardUI({ initialInvoices, userRole, stats }:
                     </div>
                   </TableCell>
 
+{/* 🟢 FIXED: Amount cell now uses dynamic currency (LKR or USD) */}
                   <TableCell className="text-right font-black text-slate-900">
-                    Rs. {inv.total.toLocaleString()}
+                    <span className="text-[10px] text-slate-400 mr-1">{inv.currency}</span>
+                    {inv.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </TableCell>
 
                   <TableCell>
                     <div className="flex items-center justify-center gap-1">
                       
-                      {/* 🔄 STATUS DROPDOWN (Saves immediately on click) */}
+                      {/* Share Button */}
+                    <Button 
+  title="Email to Client" 
+  variant="ghost" 
+  size="icon" 
+  className="h-8 w-8 text-orange-600 hover:bg-orange-50"
+  onClick={async () => {
+    const ok = confirm("Are you sure you want to send this to the client's email?");
+    if (ok) {
+      const res = await sendInvoiceEmail(inv.id);
+      if (res.success) alert("Email sent successfully!");
+      else alert("Error: " + res.error);
+    }
+  }}
+>
+  <Package size={16}/>
+</Button>
+
+                      {/* Copy Link Button */}
+<Button 
+  title="Copy Public Link" 
+  variant="ghost" 
+  size="icon" 
+  className="h-8 w-8 text-blue-600 hover:bg-blue-50"
+  onClick={() => handleCopyLink(inv.id)}
+>
+  <Share2 size={16} /> {/* Share icon often looks cleaner for external links */}
+</Button>
+
+                      {/* Other Action Buttons */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button title="Change Status" variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50">

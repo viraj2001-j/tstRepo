@@ -23,6 +23,7 @@ enum InvoiceStatus {
   SENT
   PAID
  OVERDUE
+ PARTIAL
 }
 
 model User {
@@ -35,6 +36,8 @@ model User {
   invoices  Invoice[] @relation("UserInvoices")
 
   createdAt DateTime @default(now())
+
+  signature String?  @db.Text
 } 
 
 model Client {
@@ -104,6 +107,18 @@ model Invoice {
   items         InvoiceItem[]
 
   createdAt     DateTime @default(now())
+
+  signature   String?   // Stores the Base64 data of the signature
+  isSigned    Boolean   @default(false)
+  signedAt    DateTime?
+
+  adminSignature  String?
+
+  payments      Payment[]     @relation("InvoicePayments")
+  
+  // Computed (Logic will handle these)
+  amountPaid    Float         @default(0)
+  balanceAmount Float         @default(0)
 }
 
 model InvoiceItem {
@@ -126,3 +141,16 @@ model InvoiceItem {
   id    Int    @id @default(autoincrement())
   name  String @unique
 }  
+
+model Payment {
+  id          Int      @id @default(autoincrement())
+  amount      Float
+  paymentDate DateTime @default(now())
+  method      String   // e.g., Cash, Bank Transfer, Online
+  note        String?
+
+  createdAT   DateTime @default(now())
+
+  invoiceId   Int
+  invoice     Invoice  @relation("InvoicePayments", fields: [invoiceId], references: [id], onDelete: Cascade)
+}

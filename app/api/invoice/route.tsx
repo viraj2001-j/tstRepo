@@ -5,6 +5,10 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { revalidatePath } from "next/cache"
 
+/**
+ * Creates a complete invoice including client, optional company, and line items.
+ * Injects the Super Admin signature into the invoice record at creation.
+ */
 export async function createFullInvoice(allData: any) {
   const session = await getServerSession(authOptions)
   
@@ -14,8 +18,14 @@ export async function createFullInvoice(allData: any) {
   }
 
   try {
+    // 1. Fetch Super Admin signature from the User table
+    const admin = await prisma.user.findFirst({
+      where: { role: 'SUPERADMIN' },
+      select: { signature: true } 
+    });
+
     const result = await prisma.$transaction(async (tx) => {
-      // A. Create Client
+      // A. Create Client record
       const client = await tx.client.create({
         data: {
           name: allData.client.name,
@@ -26,7 +36,7 @@ export async function createFullInvoice(allData: any) {
         },
       })
 
-      // B. Conditional Company
+      // B. Create Company record if data is provided
       let companyId: number | undefined = undefined;
       if (allData.company.name && allData.company.name.trim() !== "") {
         const company = await tx.company.create({
@@ -46,7 +56,7 @@ export async function createFullInvoice(allData: any) {
         })
       }
 
-      // C. Create Invoice
+      // C. Create the Invoice record
       const invoice = await tx.invoice.create({
         data: {
           invoiceNumber: allData.details.invoiceNumber,
@@ -65,12 +75,16 @@ export async function createFullInvoice(allData: any) {
           companyId: companyId, 
           clientId: client.id,
           createdById: currentUserId,
+          
+          // Inject Admin Signature from the profile
+          adminSignature: admin?.signature || null, 
+
           items: {
             create: allData.items.map((item: any) => ({
               description: item.description,
-              quantity: Number(item.qty),
+              quantity: Number(item.qty || item.quantity),
               rate: Number(item.rate),
-              amount: Number(item.qty * item.rate),
+              amount: Number((item.qty || item.quantity) * item.rate),
             }))
           }
         }
@@ -78,7 +92,6 @@ export async function createFullInvoice(allData: any) {
       return invoice
     })
 
-    // ✅ Updated Path
     revalidatePath("/dashboard/invoices")
     return { success: true, id: result.id, error: null }
 
@@ -89,12 +102,9 @@ export async function createFullInvoice(allData: any) {
   }
 }
 
-
-export async function saveNewCategory(name: string) {
-  return await prisma.category.create({
-    data: { name }
-  });
-}
+/**
+ * Category Management Functions
+ */
 
 export async function getCategories() {
   const cats = await prisma.category.findMany({
@@ -103,38 +113,18 @@ export async function getCategories() {
   return cats.map(c => c.name);
 }
 
-// Inside your server-side code
-export async function deleteCategory(categoryName: string) {
-  return await prisma.category.delete({
-    where: {
-      name: categoryName,
-    },
+export async function saveNewCategory(name: string) {
+  const newCat = await prisma.category.create({
+    data: { name }
   });
+  revalidatePath("/dashboard/invoices/new");
+  return newCat;
 }
 
-// export async function getInvoices() {
-//   try {
-//     const invoices = await prisma.invoice.findMany({
-//       include: {
-//         client: true,
-//         company: true,
-//         // Using the name from your schema (Line 99)
-//         createdBy: { 
-//           select: { 
-//             username: true,
-//             role: true 
-//           } 
-//         },
-//         items: true
-//       },
-//       orderBy: { 
-//         createdAt: 'desc' 
-//       }
-//     });
-//     return invoices;
-//   } catch (error) {
-//     console.error("Error fetching invoices:", error);
-//     return [];
-//   }
-// }
-
+export async function deleteCategory(categoryName: string) {
+  const deleted = await prisma.category.delete({
+    where: { name: categoryName },
+  });
+  revalidatePath("/dashboard/invoices/new");
+  return deleted;
+}

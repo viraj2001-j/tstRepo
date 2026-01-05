@@ -28,7 +28,7 @@ const Company = ({ data, update }: CompanyProps) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Your Company</CardTitle>
+        <CardTitle>Company Details (Optional)</CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-4">
         <Input 
