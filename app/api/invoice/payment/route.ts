@@ -2,7 +2,10 @@
 
 import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { InvoiceStatus } from "@/app/generated/prisma/enums";
+// import { InvoiceStatus } from "@/app/generated/prisma/enums";
+import { InvoiceStatus } from "@/app/generated/prisma/client";
+
+
 
 /**
  * 🟢 RECORD A NEW PAYMENT
